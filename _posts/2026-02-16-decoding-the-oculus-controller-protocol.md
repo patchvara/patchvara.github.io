@@ -11,6 +11,8 @@ So I was messing around with my Oculus controllers the other day and got curious
 
 I spent way too much time digging through firmware dumps and packet captures to figure this out, so here's what I found. I'll walk you through the physical layer, how devices find each other, the pairing process, and this command system I call SPL.
 
+**Please note that all information presented here is the result of independent research and may contain mistakes or inconsistencies.**
+
 ## The Physical Layer: Not Your Average Bluetooth
 
 The whole thing is built on this custom radio setup. They basically said 'screw standard Bluetooth' and rolled their own thing for better speed.
@@ -47,7 +49,7 @@ The flow is a standard command-response pattern, with the host always initiating
     *   Now, both sides can compute a shared secret. This secret is used *only* to encrypt the *next* step.
 
 3.  **Main Communication Key Exchange:**
-    *   The host sends the main communication link key, encrypted with the shared secret, using the `Decrypt` command (`CMD ID: 0x11`).
+    *   The host sends the main communication link key, encrypted with the shared secret, using the `PairingData` command (`CMD ID: 0x11`).
     *   The controller decrypts this payload. The first 4 bytes of the decrypted data become the *new* base address for the main, ongoing communication link.
 
 4.  **Finalizing the Connection:**
@@ -115,8 +117,8 @@ Retrieves the status and version of the Captouch firmware.
 | `REV2`        | 1            | Revision 2                              |
 | `need_update` | 1            | Flag indicating if an update is needed. |
 
-#### `0x11` Decrypt
-Used by the host to send encrypted data during the pairing process.
+#### `0x11` PairingData
+Used by the host to send encrypted pairing data during the pairing process.
 
 **Request Payload**
 
@@ -154,7 +156,7 @@ Writes a persistent 128-bit AES key to the device.
 Restarts the controller, typically used to exit pairing mode. This command has no payload.
 
 #### `0x16` ResetDMMode
-Restarts the controller into a Development/Debug Mode (DM). This command has no payload.
+Restarts the controller into a Device Managment mode. This command has no payload.
 
 #### `0x21` WipeImage
 Wipes a firmware image from the device's flash memory. The specific image is determined by `img_id`.
