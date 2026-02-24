@@ -7,6 +7,8 @@ tags: [oculus, controller, reverse engineering, nrf]
 image: /assets/img/2026-02-16/oculus-spl-proto.png
 ---
 
+> **Update:** This post has been updated to correct some details regarding the radio channels and frequencies used during the advertisement and pairing processes.
+
 So I was messing around with my Oculus controllers the other day and got curious - how the hell do these things actually talk to the headset? While it might seem like magic, it's all managed by a sophisticated, proprietary radio protocol. It’s not your standard Bluetooth LE; instead, it's a custom solution built on top of a Nordic Semiconductor chipset, running in a proprietary 2Mbit/s mode.
 
 I spent way too much time digging through firmware dumps and packet captures to figure this out, so here's what I found. I'll walk you through the physical layer, how devices find each other, the pairing process, and this command system I call SPL.
@@ -18,6 +20,7 @@ I spent way too much time digging through firmware dumps and packet captures to 
 The whole thing is built on this custom radio setup. They basically said 'screw standard Bluetooth' and rolled their own thing for better speed.
 
 -   **Data Rate:** A speedy 2 Mbit/s.
+-   **Channels:** Advertisement packets are sent on **Channel 37** (2402 MHz), while the pairing process and subsequent main communication use **Channel 38** (2426 MHz).
 -   **Packet Whitening:** Disabled.
 -   **CRC-24:** A 3-byte CRC with an initial value of `0x00FFFFFF` and polynomial `0x00108421` ensures data integrity.
 
@@ -27,7 +30,7 @@ The packet structure itself is defined with a 1-byte preamble, a 5-byte access a
 
 To connect, a controller first needs to announce its presence. This is triggered by pressing `HOME + Y` on the left controller or `HOME + B` on the right one. For about 60 seconds, the controller enters advertisement mode, broadcasting its availability every 100ms.
 
-The host (headset or dongle) scans public channels for a very specific 5-byte **Access Address**: `0xAA` + `0xFACEB00C`. The FACEB00C part is hilarious - some dev definitely had fun with that one. When the host's radio, which is configured to filter for this exact address, finds a matching packet, it knows an Oculus controller is nearby and ready to connect.
+The host (headset or dongle) scans **Channel 37 (2402 MHz)** for a very specific 5-byte **Access Address**: `0xAA` + `0xFACEB00C`. The FACEB00C part is hilarious - some dev definitely had fun with that one. When the host's radio, which is configured to filter for this exact address, finds a matching packet, it knows an Oculus controller is nearby and ready to connect.
 
 The advertisement packet payload contains crucial information:
 
@@ -41,7 +44,7 @@ Once a controller is discovered, the host initiates the pairing process. This in
 
 The flow is a standard command-response pattern, with the host always initiating:
 
-1.  **Initial Contact:** The host starts pinging the controller using the `device_id_0` from the advertisement packet as the new base access address.
+1.  **Initial Contact:** The host switches to **Channel 38 (2426 MHz)** and starts pinging the controller using the `device_id_0` from the advertisement packet as the new base access address.
 
 2.  **ECDH Key Exchange:**
     *   The host sends its 32-byte public key using the `SetupX25519Keys` command (`CMD ID: 0x12`).
